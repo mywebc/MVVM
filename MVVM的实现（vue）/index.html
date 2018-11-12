@@ -8,6 +8,20 @@
     <script src="index.js"></script>
 </head>
 <body>
-    
+   
+    <div id="app">
+        {{ a }}
+        <h1>{{ b }}</h1>
+        <input type="text" >
+    </div>
+    <script>
+        let vue = new Vue({
+            el: '#app',
+            data: {
+                a: 1,
+                b: 2
+            }
+        })
+    </script>
 </body>
 </html>
