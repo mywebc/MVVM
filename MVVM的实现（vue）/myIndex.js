@@ -38,18 +38,90 @@ function Compile(el, vm) {
     }
     // 替换{{}}中的内容
     replace(fragment)
-    function replace() {    
-        Array.from(fragment.childNodes).map((node) => {
+    function replace(fragment) {    
+        Array.from(fragment.childNodes).map( function(node) {
             // 拿到节点内容
             let text = node.textContent
             let reg = /\{\{(.*)\}\}/
             // 当前节点是文本节点并且符合正则匹配
             if(node.nodeType === 3 && reg.test(text)) {
-                
+                // 以括号为例，匹配正则的第一个匹配
                 var thisexp = RegExp.$1.trim()
+                // 上面已经进行数据代理了，相当于this.a
+                // 拿到这个值
+                let val = vm[thisexp]
+                // 我们目的就是要拿到这个值，然后监听
+                new Watcher( vm, RegExp.$1, function(newVal) {
+                    // 监听的目的还是要赋值
+                    node.textContent = text.replace(reg, newVal)
+                } )
+                // 直接赋值
+                node.textContent = text.replace(reg, val)
             }
-
+            vm.$el.appendChild(fragment)
+            if(node.childNodes) {
+                // 如果当前节点还有子节点，递归
+                replace(node)
+            }
         })
     }
+}
 
+function observe(data) {
+    if(typeof data !== 'object') {
+        return
+    }
+    return new Observe(data)
+}
+
+function Observe(data) {
+    // 开启发布订阅模式
+    let dep = new Dep()
+    for(let key in data) {
+        let val = data[key]
+        Object.defineProperty(data, key, {
+            enumerable: true,
+            get() {
+                Dep.target && dep.addSub(Dep.target)
+                return val
+            },
+            set(newVal) {
+                // 如果数据不变
+                if(val === newVal) {
+                    return
+                }
+                // 否则赋值
+                val = newVal
+                // 通知更新方法
+                dep.notify()
+            }
+        })
+    }
+}
+
+// 发布订阅模式
+function Dep() {
+    this.subs = []
+}
+// 订阅（收集信息）
+Dep.prototype.addSub = function(sub) {
+    this.subs.push(sub)
+}
+// 发布
+Dep.prototype.notify = function() {
+    this.subs.map((sub) => {
+        sub.update()
+    })
+}
+
+function Watcher (vm, exp, fn) {
+    this.vm = vm
+    this.exp = exp
+    this.fn = fn
+    Dep.target = this
+}
+
+Watcher.prototype.update = function() {
+    let val = this.vm[this.exp]
+    this.fn(val)
 }
